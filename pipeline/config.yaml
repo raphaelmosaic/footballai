@@ -18,3 +18,4 @@ refine:
   max_gap: 90             # frames; gaps longer than this are not interpolated
   process_var: 1.0        # Kalman process noise
   measurement_var: 4.0    # Kalman measurement noise
+  possession_radius: 2.0  # metres; interpolated ball within this radius of a player → "possessed"

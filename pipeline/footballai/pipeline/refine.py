@@ -47,17 +47,24 @@ def ball_state(df: pd.DataFrame, possession_radius: float = 2.0) -> pd.DataFrame
 
 def run_refine(projected: pd.DataFrame, fps: float, cfg: Config) -> pd.DataFrame:
     max_gap = cfg.refine["max_gap"]
+    possession_radius = cfg.refine.get("possession_radius", 2.0)
     parts = []
-    # interpolate per real track; untracked rows (track_id=-1) pass through as observed
+    # Players and goalkeepers with real track IDs: interpolate per track
     tracked = projected[projected["track_id"] > 0]
     for tid, grp in tracked.groupby("track_id"):
         parts.append(interpolate_track(grp, max_gap))
-    untracked = projected[projected["track_id"] <= 0].copy()
-    untracked["provenance"] = "observed"
-    parts.append(untracked)
+    # Ball: treat all ball rows as a single track so gaps get filled
+    ball = projected[projected["class"] == "ball"]
+    if len(ball):
+        parts.append(interpolate_track(ball, max_gap))
+    # Other untracked non-ball rows: pass through as observed
+    other_untracked = projected[(projected["track_id"] <= 0) & (projected["class"] != "ball")].copy()
+    other_untracked["provenance"] = "observed"
+    if len(other_untracked):
+        parts.append(other_untracked)
     out = pd.concat(parts, ignore_index=True)
     out["timestamp"] = out["frame"] / fps
-    out = ball_state(out)
+    out = ball_state(out, possession_radius)
     out = out[schema.FINAL_COLUMNS].sort_values(["frame", "track_id"]).reset_index(drop=True)
     schema.validate(out, schema.FINAL_COLUMNS)
     return out
