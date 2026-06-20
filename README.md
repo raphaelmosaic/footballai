@@ -7,19 +7,21 @@ Self-supervised / multi-task pretraining for a football state representation mod
 ```
 footballai/
 ├── config.py                 # Hyperparameter dataclass
-├── train.py                  # Training loop with train/val split, logging, checkpointing
+├── train.py                  # PyTorch Lightning training entrypoint
 ├── data/
 │   ├── __init__.py
-│   ├── state_builder.py      # StatsBomb event -> state tensor parser
-│   └── statsbomb_dataset.py  # Per-event dataset + SequenceDataset wrapper
+│   ├── datamodule.py       # Lightning DataModule
+│   ├── state_builder.py    # StatsBomb event -> state tensor parser
+│   └── statsbomb_dataset.py # Per-event dataset + SequenceDataset wrapper
 ├── models/
-│   ├── __init__.py           # End-to-end FootballStateModel wrapper
-│   ├── spatial_encoder.py    # Transformer encoder over players + ball
-│   ├── temporal_model.py     # GRU/LSTM temporal backbone
-│   └── pretrain_heads.py     # Multi-task pretraining heads
+│   ├── __init__.py         # End-to-end FootballStateModel wrapper
+│   ├── lightning_module.py # LightningModule with multi-task loss
+│   ├── spatial_encoder.py  # Transformer encoder over players + ball
+│   ├── temporal_model.py   # GRU/LSTM temporal backbone
+│   └── pretrain_heads.py   # Multi-task pretraining heads
 └── utils/
     ├── __init__.py
-    └── metrics.py            # Masked MSE/BCE/CE helpers
+    └── metrics.py          # Masked MSE/BCE/CE helpers
 ```
 
 ## Model architecture
@@ -66,7 +68,7 @@ If the environment does not exist yet:
 ```bash
 uv venv --python 3.12 .venv
 source .venv/bin/activate
-uv pip install torch torchvision torchaudio numpy pandas scipy tqdm
+uv pip install torch torchvision torchaudio numpy pandas scipy tqdm pytorch-lightning torchmetrics tensorboard
 ```
 
 ## Training
@@ -82,7 +84,8 @@ python train.py \
   --seq_stride 25 \
   --horizon 5.0 \
   --val_ratio 0.15 \
-  --checkpoint_dir ./checkpoints
+  --checkpoint_dir ./checkpoints \
+  --log_dir ./runs
 ```
 
 Quick smoke test on a couple of matches:
@@ -95,14 +98,15 @@ python train.py \
   --seq_len 10 \
   --seq_stride 5 \
   --num_workers 0 \
-  --checkpoint_dir ./checkpoints_smoke
+  --checkpoint_dir ./checkpoints_smoke \
+  --log_dir ./runs_smoke
 ```
 
 Resume from a checkpoint:
 
 ```bash
 python train.py \
-  --resume ./checkpoints/latest.pt \
+  --resume ./checkpoints/last.ckpt \
   --epochs 100
 ```
 
@@ -115,18 +119,25 @@ python train.py \
   --turnover_weight 1.0
 ```
 
+View TensorBoard:
+
+```bash
+tensorboard --logdir=./runs
+```
+
 ## Outputs
 
-- `checkpoints/best.pt` — lowest validation total loss.
-- `checkpoints/latest.pt` — last epoch checkpoint for resuming.
-- Console logs after every epoch with train/val loss and per-task metrics.
+- `checkpoints/{epoch:03d}-{val/total:.4f}.ckpt` — best checkpoint by validation total loss.
+- `checkpoints/last.ckpt` — last epoch checkpoint for resuming.
+- `runs/` — TensorBoard + CSV logs.
 
 ## Key design choices
 
-- **Match-level split**: train/val separation uses `match_id` so sequences from the same match never leak across splits.
+- **Match-level split**: train/val separation uses `match_id` so that sequences from the same match never leak across splits.
 - **Set-based spatial encoder**: Transformer over a variable set of players + ball is permutation-invariant and naturally handles missing players (useful when moving to video detections).
 - **Temporal backbone**: bidirectional GRU over state-vector sequences; forward-only mode can be enabled for streaming inference.
 - **Masked multi-task losses**: padded positions are ignored in every metric, and positive-only masks are used for pass end-points / receiver slots and xG values.
+- **PyTorch Lightning**: gives mixed precision, distributed training, checkpointing, and TensorBoard/CSV logging for free.
 - **GPU auto-detect**: uses CUDA when available, falls back to CPU.
 
 ## Real-time inference roadmap

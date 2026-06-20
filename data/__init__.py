@@ -9,11 +9,14 @@ from .state_builder import (
     period_duration_seconds,
     seconds_in_period,
 )
+from .datamodule import StatsBombDataModule, padded_collate
 from .statsbomb_dataset import StatsBombDataset, SequenceDataset
 
 __all__ = [
     "StatsBombDataset",
     "SequenceDataset",
+    "StatsBombDataModule",
+    "padded_collate",
     "MatchState",
     "load_events",
     "load_lineups",

@@ -8,5 +8,6 @@ __pycache__/
 checkpoints/
 checkpoints_smoke/
 runs/
+lightning_logs/
 data/.statsbomb_dataset_index.json
 .DS_Store

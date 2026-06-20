@@ -68,9 +68,12 @@ class FootballStateModel(nn.Module):
         }
 
 
+from models.lightning_module import FootballPretrainModule
+
 __all__ = [
     "FootballStateEncoder",
     "FootballStateTemporalModel",
     "FootballPretrainHeads",
     "FootballStateModel",
+    "FootballPretrainModule",
 ]
