@@ -9,22 +9,22 @@ from footballai.pipeline.calibrate import load_homography
 STAGES = ["detect", "track", "teams", "project", "refine", "export"]
 
 def resolve_stage_range(start: str | None, end: str | None) -> list[str]:
-    s = STAGES.index(start) if start else 0
-    e = STAGES.index(end) if end else len(STAGES) - 1
     if start and start not in STAGES:
         raise ValueError(start)
     if end and end not in STAGES:
         raise ValueError(end)
+    s = STAGES.index(start) if start else 0
+    e = STAGES.index(end) if end else len(STAGES) - 1
     return STAGES[s : e + 1]
 
 def _p(work_dir: str, name: str) -> str:
     return os.path.join(work_dir, f"{name}.parquet")
 
-def run_pipeline(video_path, calib_path, cfg: Config, work_dir, start=None, end=None) -> None:
+def run_pipeline(video_path: str, calib_path: str, cfg: Config, work_dir: str, start=None, end=None) -> None:
     os.makedirs(work_dir, exist_ok=True)
     stages = resolve_stage_range(start, end)
-    meta = read_meta(video_path)
-    H = load_homography(calib_path)
+    H = load_homography(calib_path) if "project" in stages else None
+    meta = read_meta(video_path) if any(s in stages for s in ("refine", "export")) else None
 
     if "detect" in stages:
         detect.run_detection(video_path, cfg).to_parquet(_p(work_dir, "detect"))
