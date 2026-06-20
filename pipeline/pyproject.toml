@@ -23,4 +23,8 @@ dev = ["pytest>=8"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-filterwarnings = ["ignore:.*ByteTrack.*deprecated.*:FutureWarning"]
+filterwarnings = [
+  "ignore:.*ByteTrack.*deprecated.*:FutureWarning",
+  "ignore:.*Tensorflow not installed.*:ImportWarning",
+  "ignore:.*n_jobs value .* overridden.*:UserWarning",
+]
