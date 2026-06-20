@@ -13,6 +13,8 @@ class VideoMeta:
 def read_meta(video_path: str) -> VideoMeta:
     cap = cv2.VideoCapture(video_path)
     try:
+        if not cap.isOpened():
+            raise FileNotFoundError(f"could not open video: {video_path}")
         return VideoMeta(
             fps=float(cap.get(cv2.CAP_PROP_FPS)),
             width=int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
@@ -24,8 +26,10 @@ def read_meta(video_path: str) -> VideoMeta:
 
 def iter_frames(video_path: str) -> Iterator[tuple[int, np.ndarray]]:
     cap = cv2.VideoCapture(video_path)
-    idx = 0
     try:
+        if not cap.isOpened():
+            raise FileNotFoundError(f"could not open video: {video_path}")
+        idx = 0
         while True:
             ok, frame = cap.read()
             if not ok:

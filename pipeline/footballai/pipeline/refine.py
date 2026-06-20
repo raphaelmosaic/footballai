@@ -7,7 +7,9 @@ _INTERP_COLS = ["pitch_x", "pitch_y", "img_x", "img_y", "bbox_x", "bbox_y", "bbo
 
 
 def interpolate_track(track: pd.DataFrame, max_gap: int) -> pd.DataFrame:
-    track = track.sort_values("frame").copy()
+    track = track.sort_values(["frame", "conf"]).copy()
+    track = track.drop_duplicates(subset="frame", keep="last")
+    track = track.sort_values("frame").reset_index(drop=True)
     track["provenance"] = "observed"
     frames = track["frame"].to_numpy()
     rows = [track]

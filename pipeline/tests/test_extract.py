@@ -1,5 +1,14 @@
+import pytest
 from tests.fixtures.make_clip import make_clip
 from footballai.pipeline.extract import read_meta, iter_frames
+
+def test_read_meta_raises_on_bad_path():
+    with pytest.raises(FileNotFoundError):
+        read_meta("/nonexistent/nope.mp4")
+
+def test_iter_frames_raises_on_bad_path():
+    with pytest.raises(FileNotFoundError):
+        list(iter_frames("/nonexistent/nope.mp4"))
 
 def test_read_meta(tmp_path):
     clip = str(tmp_path / "c.mp4")

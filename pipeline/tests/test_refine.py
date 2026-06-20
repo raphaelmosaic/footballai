@@ -52,6 +52,27 @@ def test_ball_gap_is_interpolated():
     assert ball_f1.iloc[0]["provenance"] == "interpolated"
 
 
+def test_ball_duplicate_frame_is_deduped_then_interpolated():
+    """Two ball rows at frame 0 (diff conf/pitch_x) + one at frame 2.
+    After run_refine: frame 0 has exactly one ball row (highest conf=0.9 kept),
+    frame 1 exists as interpolated, no exception."""
+    cfg = load_config()
+    base = dict(track_id=-1, **{"class": "ball"}, team="",
+                bbox_x=5, bbox_y=5, bbox_w=1, bbox_h=1, img_x=100, img_y=100)
+    df = pd.DataFrame([
+        {**base, "frame": 0, "conf": 0.5, "pitch_x": 1.0, "pitch_y": 0.0},
+        {**base, "frame": 0, "conf": 0.9, "pitch_x": 2.0, "pitch_y": 0.0},
+        {**base, "frame": 2, "conf": 0.9, "pitch_x": 10.0, "pitch_y": 0.0},
+    ])
+    out = run_refine(df, fps=5.0, cfg=cfg)
+    ball_f0 = out[(out["class"] == "ball") & (out["frame"] == 0)]
+    assert len(ball_f0) == 1, f"Expected 1 ball row at frame 0, got {len(ball_f0)}"
+    assert ball_f0.iloc[0]["pitch_x"] == 2.0, "Expected high-conf row (pitch_x=2.0) to be kept"
+    ball_f1 = out[(out["class"] == "ball") & (out["frame"] == 1)]
+    assert len(ball_f1) == 1, "Expected interpolated ball row at frame 1"
+    assert ball_f1.iloc[0]["provenance"] == "interpolated"
+
+
 def test_ball_near_player_is_possessed():
     """When a player is near the interpolated ball position, provenance should be 'possessed'."""
     cfg = load_config()
