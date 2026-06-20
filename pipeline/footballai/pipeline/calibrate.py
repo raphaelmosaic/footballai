@@ -18,6 +18,8 @@ def load_homography(path: str) -> np.ndarray:
 
 def click_landmarks(frame_path: str, landmark_names: list[str]) -> np.ndarray:
     img = cv2.imread(frame_path)
+    if img is None:
+        raise FileNotFoundError(f"could not read frame image: {frame_path}")
     pts: list[tuple[int, int]] = []
     def on_mouse(event, x, y, flags, _):
         if event == cv2.EVENT_LBUTTONDOWN and len(pts) < len(landmark_names):
@@ -34,4 +36,6 @@ def click_landmarks(frame_path: str, landmark_names: list[str]) -> np.ndarray:
         if cv2.waitKey(20) == 27:
             break
     cv2.destroyAllWindows()
+    if len(pts) < len(landmark_names):
+        raise RuntimeError(f"calibration aborted: collected {len(pts)}/{len(landmark_names)} points")
     return np.array(pts, dtype=float)
