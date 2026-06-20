@@ -1,0 +1,30 @@
+[project]
+name = "footballai"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "ultralytics>=8.2",
+  "supervision>=0.22",
+  "opencv-python>=4.9",
+  "pandas>=2.2",
+  "pyarrow>=16",
+  "numpy>=1.26",
+  "pyyaml>=6",
+  "filterpy>=1.4.5",
+  "scikit-learn>=1.5",
+  "umap-learn>=0.5.6",
+  "transformers>=4.44",
+  "torch>=2.2",
+  "pillow>=10",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+  "ignore:.*ByteTrack.*deprecated.*:FutureWarning",
+  "ignore:.*Tensorflow not installed.*:ImportWarning",
+  "ignore:.*n_jobs value .* overridden.*:UserWarning",
+]

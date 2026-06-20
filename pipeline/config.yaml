@@ -1,0 +1,21 @@
+seed: 42
+pitch_length: 105.0
+pitch_width: 68.0
+paths:
+  work_dir: work        # per-video intermediate artifacts go here
+detect:
+  weights: weights/football-players.pt
+  conf: 0.25
+  imgsz: 1280
+  ball_class: ball
+track:
+  activation_threshold: 0.25
+  lost_track_buffer: 60   # frames a track may coast before being dropped
+teams:
+  siglip_model: google/siglip-base-patch16-224
+  umap_components: 3
+refine:
+  max_gap: 90             # frames; gaps longer than this are not interpolated
+  process_var: 1.0        # Kalman process noise
+  measurement_var: 4.0    # Kalman measurement noise
+  possession_radius: 2.0  # metres; interpolated ball within this radius of a player → "possessed"
