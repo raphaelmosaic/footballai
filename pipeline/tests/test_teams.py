@@ -1,6 +1,6 @@
 import numpy as np
 from footballai.config import load_config
-from footballai.pipeline.teams import cluster_embeddings
+from footballai.stages.teams import cluster_embeddings
 
 def test_cluster_separates_two_blobs():
     cfg = load_config()

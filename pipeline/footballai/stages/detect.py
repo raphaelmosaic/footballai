@@ -1,7 +1,7 @@
 import pandas as pd
 import supervision as sv
 from footballai.config import Config
-from footballai.pipeline.extract import iter_frames
+from footballai.stages.extract import iter_frames
 from footballai import schema
 
 

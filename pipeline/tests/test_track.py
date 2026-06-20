@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from footballai.config import load_config
-from footballai.pipeline.track import run_tracking, match_ids
+from footballai.stages.track import run_tracking, match_ids
 
 def _moving_player(n_frames=8):
     # one player drifting right by 2px/frame, high confidence

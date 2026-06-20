@@ -1,6 +1,6 @@
 import pandas as pd
 from footballai import schema
-from footballai.pipeline.export import write_artifacts, read_tracks
+from footballai.stages.export import write_artifacts, read_tracks
 
 def test_write_and_read_round_trip(tmp_path):
     df = pd.DataFrame({c: [0] for c in schema.FINAL_COLUMNS})

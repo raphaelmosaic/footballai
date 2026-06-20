@@ -1,5 +1,5 @@
 import numpy as np
-from footballai.pipeline.calibrate import compute_homography, save_homography, load_homography
+from footballai.stages.calibrate import compute_homography, save_homography, load_homography
 
 def test_homography_round_trip():
     # known pitch points (meters) and a synthetic camera mapping

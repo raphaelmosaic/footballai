@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 import supervision as sv
-from footballai.pipeline.detect import detections_to_rows
+from footballai.stages.detect import detections_to_rows
 from footballai import schema
 
 

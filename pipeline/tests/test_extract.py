@@ -1,6 +1,6 @@
 import pytest
 from tests.fixtures.make_clip import make_clip
-from footballai.pipeline.extract import read_meta, iter_frames
+from footballai.stages.extract import read_meta, iter_frames
 
 def test_read_meta_raises_on_bad_path():
     with pytest.raises(FileNotFoundError):

@@ -2,9 +2,9 @@ import argparse
 import os
 import pandas as pd
 from footballai.config import load_config, Config
-from footballai.pipeline.extract import read_meta
-from footballai.pipeline import detect, track, teams, project, refine, export
-from footballai.pipeline.calibrate import load_homography
+from footballai.stages.extract import read_meta
+from footballai.stages import detect, track, teams, project, refine, export
+from footballai.stages.calibrate import load_homography
 
 STAGES = ["detect", "track", "teams", "project", "refine", "export"]
 

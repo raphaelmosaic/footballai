@@ -29,7 +29,7 @@ def _embed_crops(crops: list[np.ndarray], cfg: Config) -> np.ndarray:
 
 
 def assign_teams(tracks: pd.DataFrame, video_path: str, cfg: Config) -> pd.DataFrame:
-    from footballai.pipeline.extract import iter_frames
+    from footballai.stages.extract import iter_frames
     out = tracks.copy()
     out["team"] = None
     out.loc[out["class"] == "goalkeeper", "team"] = "GK"

@@ -3,9 +3,9 @@ import numpy as np
 import pandas as pd
 from footballai.config import load_config
 from footballai import schema
-from footballai.pipeline.project import run_projection
-from footballai.pipeline.refine import run_refine
-from footballai.pipeline.export import write_artifacts, read_tracks
+from footballai.stages.project import run_projection
+from footballai.stages.refine import run_refine
+from footballai.stages.export import write_artifacts, read_tracks
 
 
 def test_project_refine_export_smoke(tmp_path):

@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from footballai.config import load_config
-from footballai.pipeline.refine import interpolate_track, run_refine
+from footballai.stages.refine import interpolate_track, run_refine
 
 def _track_with_gap():
     # track_id 1 present at frames 0 and 2, missing at 1

@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from footballai.pipeline.project import foot_points, project_points, run_projection
+from footballai.stages.project import foot_points, project_points, run_projection
 
 def test_foot_point_is_bottom_center():
     df = pd.DataFrame([{"bbox_x": 100, "bbox_y": 200, "bbox_w": 20, "bbox_h": 40}])
