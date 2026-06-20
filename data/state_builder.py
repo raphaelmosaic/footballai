@@ -296,10 +296,31 @@ class MatchState:
         return np.array([x, y], dtype=np.float32)
 
     def _propagate_players(self, dt: float) -> None:
+        """Move players forward by their inferred velocity.
+
+        Large gaps (halftime, injury stoppages) are capped so velocity does
+        not explode positions into NaN/inf.
+        """
+        # Cap propagation step to avoid runaway extrapolation.
+        max_dt = 2.0  # seconds
+        dt = min(float(dt), max_dt)
+
         for pid in list(self._positions.keys()):
-            self._positions[pid] = self._positions[pid] + self._velocities.get(
-                pid, np.zeros(2)
-            ) * dt
+            vel = self._velocities.get(pid, np.zeros(2, dtype=np.float32))
+            # Clamp velocity magnitude to plausible pitch speeds (~12 m/s
+            # sustained is already very fast for football).
+            max_speed = 12.0 / 60.0  # pitch-normalized units per second
+            speed = np.linalg.norm(vel)
+            if speed > max_speed:
+                vel = vel * (max_speed / speed)
+                self._velocities[pid] = vel
+
+            new_pos = self._positions[pid] + vel * dt
+            # Guard against any stray NaN/inf from bad event timestamps.
+            if not np.all(np.isfinite(new_pos)):
+                new_pos = np.zeros(2, dtype=np.float32)
+                self._velocities[pid] = np.zeros(2, dtype=np.float32)
+            self._positions[pid] = new_pos
 
     def _ensure_on_pitch_initialized(self, period: int, sec_in_period: float) -> None:
         for pid, info in self.player_info.items():
