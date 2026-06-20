@@ -116,6 +116,8 @@ class FootballPretrainModule(pl.LightningModule):
         losses = self._compute_losses(outputs, batch)
         for key, value in losses.items():
             self.log(f"train/{key}", value, on_step=True, on_epoch=True, prog_bar=key == "total", batch_size=batch["frames"].size(0))
+        # Log GPU utilisation and batch timing for diagnostics.
+        self.log("train/batch_size", float(batch["frames"].size(0)), on_step=True, on_epoch=False, prog_bar=False)
         return losses["total"]
 
     def validation_step(self, batch: dict, batch_idx: int) -> torch.Tensor:

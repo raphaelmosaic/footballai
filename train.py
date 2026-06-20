@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger, TensorBoardLogger
 
 from config import ModelConfig
@@ -38,6 +38,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--no_preprocessed", dest="use_preprocessed", action="store_false")
     parser.add_argument("--processed_dir", type=str, default="./data/processed")
     parser.add_argument("--cache_matches", type=int, default=16)
+    parser.add_argument("--patience", type=int, default=3, help="Early stopping patience epochs")
+    parser.add_argument("--max_epochs", type=int, default=None, help="Alias for --epochs")
     return parser.parse_args()
 
 
@@ -58,6 +60,8 @@ def build_config(args: argparse.Namespace) -> ModelConfig:
 def main() -> None:
     args = parse_args()
     pl.seed_everything(args.seed)
+
+    epochs = args.max_epochs if args.max_epochs is not None else args.epochs
 
     config = build_config(args)
     datamodule = StatsBombDataModule(
@@ -87,6 +91,13 @@ def main() -> None:
         save_top_k=1,
         save_last=True,
     )
+    early_stop_callback = EarlyStopping(
+        monitor="val/total",
+        min_delta=0.001,
+        patience=args.patience,
+        verbose=True,
+        mode="min",
+    )
 
     log_dir = Path(args.log_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -96,14 +107,16 @@ def main() -> None:
     ]
 
     trainer = pl.Trainer(
-        max_epochs=args.epochs,
+        max_epochs=epochs,
         accelerator="auto",
         devices="auto",
         gradient_clip_val=args.gradient_clip_val,
         accumulate_grad_batches=args.accumulate_grad_batches,
-        callbacks=[checkpoint_callback],
+        callbacks=[checkpoint_callback, early_stop_callback],
         logger=loggers,
-        log_every_n_steps=10,
+        log_every_n_steps=50,
+        enable_progress_bar=True,
+        enable_model_summary=True,
     )
 
     trainer.fit(
