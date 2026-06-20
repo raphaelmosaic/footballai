@@ -1,0 +1,12 @@
+.venv/
+.claude/
+__pycache__/
+*.py[cod]
+*.so
+*.pt
+*.pth
+checkpoints/
+checkpoints_smoke/
+runs/
+data/.statsbomb_dataset_index.json
+.DS_Store
