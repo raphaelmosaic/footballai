@@ -2,3 +2,5 @@
 work/
 weights/
 samples/
+__pycache__/
+*.pyc
