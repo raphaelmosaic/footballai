@@ -55,11 +55,12 @@ class FootballStateModel(nn.Module):
         """
         B, T, N, F = entity_features.shape
         flat = entity_features.view(B * T, N, F)
-        state = self.spatial_encoder(flat)         # [B*T, D]
-        state = state.view(B, T, -1)               # [B, T, D]
+        state, entity_features = self.spatial_encoder(flat)  # [B*T, D], [B*T, N, D]
+        state = state.view(B, T, -1)                          # [B, T, D]
+        entity_features = entity_features.view(B, T, N, -1)   # [B, T, N, D]
 
         temporal_hidden = self.temporal_model(state, seq_len=seq_len)  # [B, T, H]
-        predictions = self.pretrain_heads(temporal_hidden)
+        predictions = self.pretrain_heads(temporal_hidden, entity_features=entity_features)
 
         return {
             "state": state,

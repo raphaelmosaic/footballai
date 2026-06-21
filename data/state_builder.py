@@ -308,8 +308,10 @@ class MatchState:
         for pid in list(self._positions.keys()):
             vel = self._velocities.get(pid, np.zeros(2, dtype=np.float32))
             # Clamp velocity magnitude to plausible pitch speeds (~12 m/s
-            # sustained is already very fast for football).
-            max_speed = 12.0 / 60.0  # pitch-normalized units per second
+            # sustained is already very fast for football). Velocity is in
+            # normalized pitch units per second, so 12 m/s on a 120m pitch is
+            # 12/120 = 0.1 per second.
+            max_speed = 12.0 / 120.0  # normalized units per second
             speed = np.linalg.norm(vel)
             if speed > max_speed:
                 vel = vel * (max_speed / speed)
@@ -321,6 +323,34 @@ class MatchState:
                 new_pos = np.zeros(2, dtype=np.float32)
                 self._velocities[pid] = np.zeros(2, dtype=np.float32)
             self._positions[pid] = new_pos
+
+    def _clamp_state(self) -> None:
+        """Clamp all tracked positions and velocities to sensible ranges.
+
+        Prevents bad event timings from pushing players/ball far outside the
+        pitch and producing extreme velocities that dominate model inputs.
+        """
+        max_pos = 1.05  # allow tiny rounding only, keep players on/near pitch
+        max_speed = 12.0 / 120.0  # normalized pitch units per second
+        for pid in list(self._positions.keys()):
+            pos = self._positions[pid]
+            pos = np.clip(pos, -max_pos, max_pos)
+            if not np.all(np.isfinite(pos)):
+                pos = np.zeros(2, dtype=np.float32)
+            self._positions[pid] = pos
+
+            vel = self._velocities.get(pid, np.zeros(2, dtype=np.float32))
+            speed = np.linalg.norm(vel)
+            if speed > max_speed:
+                vel = vel * (max_speed / speed)
+            if not np.all(np.isfinite(vel)):
+                vel = np.zeros(2, dtype=np.float32)
+            self._velocities[pid] = vel
+
+        # Ball velocity is implicit (we don't track it), just clamp position.
+        self._ball_pos = np.clip(self._ball_pos, -max_pos, max_pos)
+        if not np.all(np.isfinite(self._ball_pos)):
+            self._ball_pos = np.zeros(2, dtype=np.float32)
 
     def _ensure_on_pitch_initialized(self, period: int, sec_in_period: float) -> None:
         for pid, info in self.player_info.items():
@@ -364,7 +394,13 @@ class MatchState:
         if old_pos is None:
             self._velocities[player_id] = np.zeros(2, dtype=np.float32)
         elif dt > 1e-6:
-            self._velocities[player_id] = (new_pos - old_pos) / dt
+            vel = (new_pos - old_pos) / dt
+            # Clamp velocity to plausible football sprint speed.
+            max_speed = 12.0 / 120.0
+            speed = np.linalg.norm(vel)
+            if speed > max_speed:
+                vel = vel * (max_speed / speed)
+            self._velocities[player_id] = vel
         else:
             # Keep existing velocity if time did not advance.
             if player_id not in self._velocities:
@@ -382,6 +418,7 @@ class MatchState:
         # Ensure newly-on players have state and propagate known players forward.
         self._ensure_on_pitch_initialized(period, sec_in_period)
         self._propagate_players(dt)
+        self._clamp_state()
 
         # Update ball location if available.
         loc = self._event_location(ev)
@@ -403,7 +440,12 @@ class MatchState:
             if end_loc is not None:
                 duration = ev.get("duration", 0.0)
                 if duration > 1e-6:
-                    self._velocities[player_id] = (end_loc - loc) / duration
+                    vel = (end_loc - loc) / duration
+                    max_speed = 12.0 / 120.0
+                    speed = np.linalg.norm(vel)
+                    if speed > max_speed:
+                        vel = vel * (max_speed / speed)
+                    self._velocities[player_id] = vel
 
     def _build_state(self, ev: dict) -> Tuple[torch.Tensor, torch.Tensor]:
         period = ev["period"]

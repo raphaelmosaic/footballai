@@ -1,11 +1,14 @@
 """Multi-task pretraining heads sitting on top of the temporal backbone.
 
-Input:  [B, T, H] per-timestep temporal hidden state.
+Input:  [B, T, H] per-timestep temporal hidden state and optional
+        [B, T, N, D] per-entity spatial features.
 Outputs:
     - pass_receiver: dict with "end_xy" [B, T, 2] and "receiver_logits" [B, T, slots]
     - shot_xg:       dict with "shot_prob" [B, T, 1], "xg" [B, T, 1]
     - turnover:      dict with "turnover_prob" [B, T, 1]
 """
+
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -15,7 +18,13 @@ from config import ModelConfig
 
 
 class PassReceiverHead(nn.Module):
-    """Predicts the destination of a pass: continuous (x, y) and discrete receiver slot."""
+    """Predicts the destination of a pass: continuous (x, y) and discrete receiver slot.
+
+    The receiver slot is predicted directly from the per-entity spatial features so
+    that player identity/order is preserved. Mean pooling the entities before
+    classification destroys the information needed to distinguish which of the 22
+    outfield players will receive the ball.
+    """
 
     def __init__(self, config: ModelConfig):
         super().__init__()
@@ -31,18 +40,26 @@ class PassReceiverHead(nn.Module):
         )
 
         self.end_xy_proj = nn.Linear(in_dim // 2, 2)
-        self.receiver_logits = nn.Linear(in_dim // 2, config.pass_receiver_slots)
 
-    def forward(self, hidden: torch.Tensor) -> dict:
+        # Per-entity logit for each outfield player. Entity 0 is the ball, so
+        # player i corresponds to entity index i+1 and logit index i.
+        self.player_logit = nn.Linear(config.embed_dim, 1)
+
+
+    def forward(self, hidden: torch.Tensor, entity_features: torch.Tensor) -> dict:
         """
         Args:
-            hidden: [B, T, H]
+            hidden:          [B, T, H] temporal hidden state.
+            entity_features: [B, T, N, D] per-entity spatial features (ball is entity 0).
         Returns:
             dict with "end_xy" [B, T, 2] and "receiver_logits" [B, T, slots].
         """
         x = self.mlp(hidden)
         end_xy = self.end_xy_proj(x)  # unbounded real-valued pitch coordinates
-        receiver_logits = self.receiver_logits(x)
+
+        # Player features: exclude the ball (entity 0).
+        players = entity_features[:, :, 1:, :]  # [B, T, slots, D]
+        receiver_logits = self.player_logit(players).squeeze(-1)  # [B, T, slots]
         return {"end_xy": end_xy, "receiver_logits": receiver_logits}
 
 
@@ -73,12 +90,12 @@ class ShotXgHead(nn.Module):
         Args:
             hidden: [B, T, H]
         Returns:
-            dict with "shot_prob" [B, T, 1] and "xg" [B, T, 1].
+            dict with "shot_logits" [B, T, 1] and "xg" [B, T, 1].
         """
         x = self.shared(hidden)
-        shot_prob = torch.sigmoid(self.shot_logit(x))
+        shot_logits = self.shot_logit(x)  # logits for BCEWithLogitsLoss
         xg = self.xg_proj(x)
-        return {"shot_prob": shot_prob, "xg": xg}
+        return {"shot_logits": shot_logits, "xg": xg, "shot_prob": torch.sigmoid(shot_logits)}
 
 
 class TurnoverHead(nn.Module):
@@ -95,7 +112,7 @@ class TurnoverHead(nn.Module):
             nn.ReLU(inplace=True),
             nn.Dropout(config.transformer_dropout),
             nn.Linear(in_dim // 2, 1),
-            nn.Sigmoid(),
+            # Output logits; probability is computed on demand in forward.
         )
 
     def forward(self, hidden: torch.Tensor) -> dict:
@@ -103,9 +120,10 @@ class TurnoverHead(nn.Module):
         Args:
             hidden: [B, T, H]
         Returns:
-            dict with "turnover_prob" [B, T, 1].
+            dict with "turnover_logits" [B, T, 1] and "turnover_prob" [B, T, 1].
         """
-        return {"turnover_prob": self.net(hidden)}
+        logits = self.net(hidden)
+        return {"turnover_logits": logits, "turnover_prob": torch.sigmoid(logits)}
 
 
 class PretrainHeads(nn.Module):
@@ -117,15 +135,21 @@ class PretrainHeads(nn.Module):
         self.shot_xg = ShotXgHead(config)
         self.turnover = TurnoverHead(config)
 
-    def forward(self, temporal_hidden: torch.Tensor) -> dict:
+    def forward(
+        self,
+        temporal_hidden: torch.Tensor,
+        entity_features: Optional[torch.Tensor] = None,
+    ) -> dict:
         """
         Args:
             temporal_hidden: [B, T, H]
+            entity_features: [B, T, N, D] per-entity spatial features (optional,
+                             required by the pass receiver head).
         Returns:
             Nested dict keyed by task name.
         """
         return {
-            "pass_receiver": self.pass_receiver(temporal_hidden),
+            "pass_receiver": self.pass_receiver(temporal_hidden, entity_features),
             "shot_xg": self.shot_xg(temporal_hidden),
             "turnover": self.turnover(temporal_hidden),
         }

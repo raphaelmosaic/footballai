@@ -31,6 +31,8 @@ class FootballPretrainModule(pl.LightningModule):
         receiver_weight: float = 1.0,
         shot_weight: float = 1.0,
         turnover_weight: float = 1.0,
+        shot_pos_weight: float = 1.0,
+        turnover_pos_weight: float = 1.0,
     ):
         super().__init__()
         self.save_hyperparameters(ignore=["config"])
@@ -39,9 +41,15 @@ class FootballPretrainModule(pl.LightningModule):
         self.receiver_weight = receiver_weight
         self.shot_weight = shot_weight
         self.turnover_weight = turnover_weight
+        self.shot_pos_weight = shot_pos_weight
+        self.turnover_pos_weight = turnover_pos_weight
 
     def forward(self, frames: torch.Tensor, seq_len: Optional[torch.Tensor] = None) -> dict:
         return self.model(frames, seq_len=seq_len)
+
+    def _build_pos_weight(self, ratio: float) -> torch.Tensor:
+        """Heuristic positive weight from observed neg:pos ratio."""
+        return torch.tensor(max(1.0, ratio), device=self.device)
 
     def _compute_losses(self, outputs: dict, batch: dict) -> Dict[str, torch.Tensor]:
         lengths = batch["lengths"]
@@ -63,7 +71,10 @@ class FootballPretrainModule(pl.LightningModule):
         shot_flag = batch["shot_xg"][..., 0]
         shot_value = batch["shot_xg"][..., 1]
         losses["shot_prob"] = masked_bce_loss(
-            shot_out["shot_prob"].squeeze(-1), shot_flag, lengths
+            shot_out["shot_logits"].squeeze(-1),
+            shot_flag,
+            lengths,
+            pos_weight=torch.tensor(self.shot_pos_weight, device=shot_out["shot_logits"].device),
         )
         shot_value_mask = shot_flag > 0
         if shot_value_mask.any():
@@ -73,16 +84,24 @@ class FootballPretrainModule(pl.LightningModule):
 
         # Turnover.
         losses["turnover"] = masked_bce_loss(
-            outputs["turnover"]["turnover_prob"].squeeze(-1),
+            outputs["turnover"]["turnover_logits"].squeeze(-1),
             batch["turnover"],
             lengths,
+            pos_weight=torch.tensor(self.turnover_pos_weight, device=outputs["turnover"]["turnover_logits"].device),
         )
 
+        # Balance the three core losses so each task contributes comparable
+        # gradient magnitudes. Empirical unweighted magnitudes at init:
+        #   pass_slot ~ 3.09, shot_prob ~ 0.69, turnover ~ 0.69,
+        # but with positive re-weighting shot/turnover become ~3-8. We scale
+        # pass losses down and keep shot/turnover weighted by their ratios.
         total = (
-            self.receiver_weight * (losses.get("pass_xy", 0) + losses.get("pass_slot", 0))
-            + self.shot_weight * (losses.get("shot_prob", 0) + losses.get("shot_xg", 0))
+            self.receiver_weight * (losses.get("pass_xy", 0) + losses.get("pass_slot", 0)) * 0.5
+            + self.shot_weight * losses.get("shot_prob", 0)
             + self.turnover_weight * losses["turnover"]
         )
+        # xG is an auxiliary dense regression only on positive shots; keep it in
+        # metrics but outside the main total so it does not drown the core tasks.
         losses["total"] = total
         return losses
 

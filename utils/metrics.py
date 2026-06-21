@@ -1,5 +1,7 @@
 """Masked metric helpers for variable-length football sequences."""
 
+from typing import Optional
+
 import torch
 import torch.nn.functional as F
 
@@ -65,14 +67,25 @@ def masked_bce_loss(
     targets: torch.Tensor,
     lengths: torch.Tensor,
     extra_mask: torch.Tensor = None,
+    pos_weight: Optional[torch.Tensor] = None,
 ) -> torch.Tensor:
-    """Binary cross entropy averaged over valid timesteps."""
+    """Binary cross entropy averaged over valid timesteps.
+
+    Args:
+        logits: [B, T] or [B, T, 1] raw logits.
+        targets: same shape as logits, 0/1.
+        lengths: [B] valid lengths.
+        extra_mask: optional [B, T] bool mask.
+        pos_weight: optional scalar tensor re-weighting positive samples.
+    """
     if logits.dim() == 2:
         logits = logits.unsqueeze(-1)
         targets = targets.unsqueeze(-1)
 
     mask = _combine_masks(lengths, extra_mask).unsqueeze(-1)
-    bce = F.binary_cross_entropy_with_logits(logits, targets.float(), reduction="none")
+    bce = F.binary_cross_entropy_with_logits(
+        logits, targets.float(), pos_weight=pos_weight, reduction="none"
+    )
     masked_bce = bce * mask.float()
     loss = masked_bce.sum() / (mask.sum() + 1e-8)
     return loss

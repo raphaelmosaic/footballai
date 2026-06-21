@@ -32,6 +32,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--receiver_weight", type=float, default=1.0)
     parser.add_argument("--shot_weight", type=float, default=1.0)
     parser.add_argument("--turnover_weight", type=float, default=1.0)
+    parser.add_argument("--shot_pos_weight", type=float, default=1.0)
+    parser.add_argument("--turnover_pos_weight", type=float, default=1.0)
     parser.add_argument("--gradient_clip_val", type=float, default=1.0)
     parser.add_argument("--accumulate_grad_batches", type=int, default=1)
     parser.add_argument("--use_preprocessed", action="store_true", default=True)
@@ -78,6 +80,8 @@ def main() -> None:
         receiver_weight=args.receiver_weight,
         shot_weight=args.shot_weight,
         turnover_weight=args.turnover_weight,
+        shot_pos_weight=args.shot_pos_weight,
+        turnover_pos_weight=args.turnover_pos_weight,
     )
 
     checkpoint_dir = Path(args.checkpoint_dir)

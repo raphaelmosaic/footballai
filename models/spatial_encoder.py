@@ -177,12 +177,16 @@ class SpatialEncoder(nn.Module):
         self.pool_type = config.pool_type
         self.output_norm = nn.LayerNorm(config.embed_dim)
 
-    def forward(self, features: torch.Tensor) -> torch.Tensor:
+    def forward(self, features: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             features: [B, N, F] raw entity features.
         Returns:
-            [B, D] state vector.
+            state:          [B, D] pooled state vector.
+            entity_features: [B, N, D] per-entity representation. For the
+                             default mean pool this is the *original* player+
+                             ball ordering; the ball is entity 0 and players
+                             are entities 1..N-1.
         """
         B, N, _ = features.shape
         on_pitch = features[..., IDX_ON_PITCH].bool()  # [B, N]
@@ -208,7 +212,7 @@ class SpatialEncoder(nn.Module):
             x_masked = x.masked_fill(~on_pitch.unsqueeze(-1), 0.0)
             counts = on_pitch.sum(dim=1, keepdim=True).clamp(min=1)  # [B, 1]
             state = x_masked.sum(dim=1) / counts                     # [B, D]
-        return state
+        return state, x
 
 
 FootballStateEncoder = SpatialEncoder  # public alias
