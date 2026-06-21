@@ -1,0 +1,28 @@
+[project]
+name = "footballai"
+version = "0.1.0"
+description = "Self-supervised / multi-task pretraining for a football state representation model using StatsBomb Open Data."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "torch>=2.12.0",
+    "torchvision",
+    "torchaudio",
+    "numpy",
+    "pandas",
+    "scipy",
+    "tqdm",
+    "pytorch-lightning>=2.6.0",
+    "torchmetrics",
+    "tensorboard",
+    "matplotlib",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[tool.uv]
+package = false
